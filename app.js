@@ -72,9 +72,16 @@ logoutBtn?.addEventListener('click', () => { clearSession(); refreshAuthUI(); })
 spinBtn?.addEventListener('click', async () => {
   const u = getUsername();
   if (!u) { loginModal?.showModal(); return; }
+
   if (!window.EDGE_BASE) {
     popupTitle.textContent = "Hata";
     popupMsg.textContent = "EDGE_BASE tanımlı değil (supabaseClient.js kontrol et).";
+    popup.showModal();
+    return;
+  }
+  if (!window.SUPABASE_ANON_KEY) {
+    popupTitle.textContent = "Hata";
+    popupMsg.textContent = "Anon key tanımlı değil (supabaseClient.js kontrol et).";
     popup.showModal();
     return;
   }
@@ -82,20 +89,23 @@ spinBtn?.addEventListener('click', async () => {
   spinBtn.disabled = true;
 
   try {
-    // Supabase Edge Function çağrısı
+    // Supabase Edge Function çağrısı (Authorization eklendi)
     const resp = await fetch(`${window.EDGE_BASE}/spin`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${window.SUPABASE_ANON_KEY}`
+      },
       body: JSON.stringify({ username: u })
     });
 
-    const text = await resp.text(); // debug kolaylığı
+    const text = await resp.text(); // debug için görebil
     if (!resp.ok) {
       throw new Error(`Spin isteği başarısız (HTTP ${resp.status}): ${text}`);
     }
 
     const data = JSON.parse(text);
-    // Beklenen: { ok: true, result: { key: 'points_10' | 'points_20' | 'points_50' | 'pass', points: number } }
+    // Beklenen: { ok:true, result:{ key:'points_10'|'points_20'|'points_50'|'pass', points:number } }
     if (!data?.ok || !data?.result?.key) {
       throw new Error(`Geçersiz yanıt: ${text}`);
     }
