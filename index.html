@@ -36,12 +36,32 @@
       </header>
 
       <section class="hero">
-  <div class="wheel-wrap">
-    <canvas id="wheelCanvas" width="420" height="420"></canvas>
-    <div class="wheel-pointer" aria-hidden="true"></div>
-    <button id="spinBtn" class="btn btn-neon">ÇEVİR</button>
-    <p class="spin-note">Günde 1 kez çevirebilirsin. Ekstra spin çıkarsa +1 hakkın olur!</p>
+ <div class="wheel-wrap">
+  <canvas id="wheelCanvas" width="480" height="480"></canvas>
+  <div class="wheel-pointer" aria-hidden="true"></div>
+
+  <!-- Kontroller -->
+  <div class="wheel-toolbar">
+    <label>Hız:
+      <select id="speedSelect">
+        <option value="fast">Hızlı</option>
+        <option value="normal" selected>Orta</option>
+        <option value="slow">Yavaş</option>
+      </select>
+    </label>
+    <label class="ml">
+      <input type="checkbox" id="tickSoundChk" checked />
+      Tık sesi
+    </label>
+    <label class="ml">
+      <input type="checkbox" id="flashChk" checked />
+      Kazanan parlasın
+    </label>
   </div>
+
+  <button id="spinBtn" class="btn btn-neon">ÇEVİR</button>
+  <p class="spin-note">Günde 1 kez çevirebilirsin. Ekstra spin çıkarsa +1 hakkın olur!</p>
+</div>
 
 
         </div>
