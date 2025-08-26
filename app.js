@@ -62,76 +62,78 @@ function refreshAuthUI() {
 loginBtn?.addEventListener('click', () => loginModal?.showModal());
 confirmLogin?.addEventListener('click', (e) => {
   e.preventDefault();
-  const raw = (usernameInput?.value || '').trim().replace(/^@/, '');
+  const raw = (usernameInput?.value || '')
+    .trim()
+    .replace(/^@/, '')
+    .toLowerCase(); // biraz normalize edelim
   if (raw) { setUsername(raw); refreshAuthUI(); }
   loginModal?.close();
 });
 logoutBtn?.addEventListener('click', () => { clearSession(); refreshAuthUI(); });
 
-// ================== Spin flow ==================
-spinBtn?.addEventListener('click', async () => {
-  const u = getUsername();
-  if (!u) { loginModal?.showModal(); return; }
+// ================== Yardımcılar ==================
+function showError(msg) {
+  popupTitle.textContent = "Hata";
+  popupMsg.textContent = msg;
+  popup.showModal();
+}
 
-  if (!window.EDGE_BASE) {
-    popupTitle.textContent = "Hata";
-    popupMsg.textContent = "EDGE_BASE tanımlı değil (supabaseClient.js kontrol et).";
-    popup.showModal();
-    return;
+function requiredWindowVar(name) {
+  const val = window[name];
+  if (!val || typeof val !== 'string' || !val.trim()) {
+    throw new Error(`${name} tanımlı değil (supabaseClient.js dosyasını kontrol et).`);
   }
-  if (!window.SUPABASE_ANON_KEY) {
-    popupTitle.textContent = "Hata";
-    popupMsg.textContent = "Anon key tanımlı değil (supabaseClient.js kontrol et).";
-    popup.showModal();
-    return;
-  }
+  return val;
+}
 
-  spinBtn.disabled = true;
+// Edge function çağrısında zaman aşımı ve iyi hata mesajları
+async function callSpin(username) {
+  const EDGE_BASE = requiredWindowVar('EDGE_BASE');            // …/functions/v1  (sonunda / YOK)
+  const ANON_KEY  = requiredWindowVar('SUPABASE_ANON_KEY');
+
+  const url = `${EDGE_BASE}/spin`;
+
+  // 12 sn timeout
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), 12000);
 
   try {
-    // Supabase Edge Function çağrısı (Authorization eklendi)
-    const resp = await fetch(`${window.EDGE_BASE}/spin`, {
+    const resp = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${window.SUPABASE_ANON_KEY}`
+        "Authorization": `Bearer ${ANON_KEY}`,   // 🔒 zorunlu
       },
-      body: JSON.stringify({ username: u })
+      body: JSON.stringify({ username }),
+      signal: ac.signal
     });
 
-    const text = await resp.text(); // debug için görebil
+    const text = await resp.text(); // her durumda loglayabilelim
     if (!resp.ok) {
+      // 401/403 gibi durumlar için anlaşılır mesaj
+      if (resp.status === 401 || resp.status === 403) {
+        throw new Error(`Yetkilendirme reddedildi (HTTP ${resp.status}). \
+Authorization header ve anon key doğru mu? Yanıt: ${text}`);
+      }
       throw new Error(`Spin isteği başarısız (HTTP ${resp.status}): ${text}`);
     }
 
-    const data = JSON.parse(text);
-    // Beklenen: { ok:true, result:{ key:'points_10'|'points_20'|'points_50'|'pass', points:number } }
-    if (!data?.ok || !data?.result?.key) {
-      throw new Error(`Geçersiz yanıt: ${text}`);
+    let data;
+    try { data = JSON.parse(text); } catch {
+      throw new Error(`Geçersiz JSON yanıtı: ${text}`);
     }
 
-    // Backend’den gelen key’e göre doğru dilimi bul
-    const idx = pickIndexForResult(data.result.key);
+    // Beklenen şema
+    if (!data?.ok || !data?.result?.key) {
+      throw new Error(`Eksik/yanlış yanıt: ${text}`);
+    }
 
-    Wheel.spinWheelToIndex(wheelCanvas, idx, () => {
-      popupTitle.textContent = "Sonuç";
-      popupMsg.textContent = "Kazandın: " + Wheel.WHEEL_SEGMENTS[idx].label;
-      popup.showModal();
-      spinBtn.disabled = false;
-    });
-
-  } catch (err) {
-    console.error("Spin hatası:", err);
-    popupTitle.textContent = "Hata";
-    popupMsg.textContent = String(err?.message || err);
-    popup.showModal();
-    spinBtn.disabled = false;
+    return data;
+  } finally {
+    clearTimeout(t);
   }
-});
+}
 
-refreshAuthUI();
-
-// ================== Helpers ==================
 // result.key -> doğru dilimin index'i
 function pickIndexForResult(resultKey) {
   // Wheel.WHEEL_SEGMENTS: [{ key: 'points_10', label: '+10', color: ... }, ...]
@@ -146,3 +148,39 @@ function pickIndexForResult(resultKey) {
   // Aynı tipten birden fazla dilim varsa rastgele birini seç
   return matches[Math.floor(Math.random() * matches.length)];
 }
+
+// ================== Spin flow ==================
+spinBtn?.addEventListener('click', async () => {
+  const u = getUsername();
+  if (!u) { loginModal?.showModal(); return; }
+
+  try {
+    // supabaseClient.js yüklenmiş mi?
+    requiredWindowVar('SUPABASE_URL');
+    requiredWindowVar('SUPABASE_ANON_KEY');
+    requiredWindowVar('EDGE_BASE');
+  } catch (e) {
+    showError(e.message);
+    return;
+  }
+
+  spinBtn.disabled = true;
+
+  try {
+    const data = await callSpin(u);
+
+    const idx = pickIndexForResult(data.result.key);
+    Wheel.spinWheelToIndex(wheelCanvas, idx, () => {
+      popupTitle.textContent = "Sonuç";
+      popupMsg.textContent = "Kazandın: " + Wheel.WHEEL_SEGMENTS[idx].label;
+      popup.showModal();
+      spinBtn.disabled = false;
+    });
+  } catch (err) {
+    console.error("Spin hatası:", err);
+    showError(String(err?.message || err));
+    spinBtn.disabled = false;
+  }
+});
+
+refreshAuthUI();
