@@ -1,39 +1,35 @@
-// ======================= app.js (tam sürüm) =======================
+const loginBtn = document.getElementById('loginBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const userInfo = document.getElementById('userInfo');
+const usernameLabel = document.getElementById('usernameLabel');
+const loginModal = document.getElementById('loginModal');
+const usernameInput = document.getElementById('usernameInput');
+const confirmLogin = document.getElementById('confirmLogin');
 
-// --- UI referansları
-const loginBtn       = document.getElementById('loginBtn');
-const logoutBtn      = document.getElementById('logoutBtn');
-const userInfo       = document.getElementById('userInfo');
-const usernameLabel  = document.getElementById('usernameLabel');
-const loginModal     = document.getElementById('loginModal');
-const usernameInput  = document.getElementById('usernameInput');
-const confirmLogin   = document.getElementById('confirmLogin');
+const spinBtn = document.getElementById('spinBtn');
+const wheelCanvas = document.getElementById('wheelCanvas');
+Wheel.drawWheel(wheelCanvas);
 
-const spinBtn        = document.getElementById('spinBtn');
-const wheelCanvas    = document.getElementById('wheelCanvas');
+// Kontroller
+const speedSelect = document.getElementById('speedSelect');
+const tickSoundChk = document.getElementById('tickSoundChk');
+const flashChk = document.getElementById('flashChk');
 
-// Kontrol çubuğu
-const speedSelect    = document.getElementById('speedSelect');
-const tickSoundChk   = document.getElementById('tickSoundChk');
-const flashChk       = document.getElementById('flashChk');
+Wheel.setOptions({ speed: speedSelect.value, tick: tickSoundChk.checked, flash: flashChk.checked });
 
-// Popup
-const popup          = document.getElementById('popup');
-const popupTitle     = document.getElementById('popupTitle');
-const popupMsg       = document.getElementById('popupMsg');
-const popupClose     = document.getElementById('popupClose');
+speedSelect?.addEventListener('change', () => Wheel.setOptions({ speed: speedSelect.value }));
+tickSoundChk?.addEventListener('change', () => Wheel.setOptions({ tick: tickSoundChk.checked }));
+flashChk?.addEventListener('change', () => Wheel.setOptions({ flash: flashChk.checked }));
 
-// Profil metrikleri (varsa)
-const todayStatusEl  = document.getElementById('todayStatus');
-const totalSpinsEl   = document.getElementById('totalSpins');
-const myPointsEl     = document.getElementById('myPoints');
+const popup = document.getElementById('popup');
+const popupTitle = document.getElementById('popupTitle');
+const popupMsg = document.getElementById('popupMsg');
+const popupClose = document.getElementById('popupClose');
 
-// --- Basit oturum yardımcıları
-function getUsername()  { return localStorage.getItem('username'); }
+function getUsername() { return localStorage.getItem('username'); }
 function setUsername(u) { localStorage.setItem('username', u); }
 function clearSession() { localStorage.removeItem('username'); }
 
-// --- Auth UI tazele
 function refreshAuthUI() {
   const u = getUsername();
   if (!u) {
@@ -46,119 +42,64 @@ function refreshAuthUI() {
   }
 }
 
-// --- Basit popup
-function showPopup(title, msg) {
-  popupTitle.textContent = title;
-  popupMsg.textContent   = msg;
-  popup.showModal();
-}
-
-// --- (Opsiyonel) profil metriklerini güncelle (backend ile doldurabilirsin)
-async function updateProfile() {
-  // Supabase ile veriyi çekip set edebilirsin. Şimdilik boş kalsın.
-  // todayStatusEl && (todayStatusEl.textContent = '—');
-  // totalSpinsEl  && (totalSpinsEl.textContent  = '0');
-  // myPointsEl    && (myPointsEl.textContent    = '0');
-}
-
-// --- Wheel ilk çizim + kontroller
-Wheel.drawWheel(wheelCanvas);
-Wheel.setOptions({ speed: speedSelect?.value || 'normal', tick: !!tickSoundChk?.checked, flash: !!flashChk?.checked });
-
-speedSelect?.addEventListener('change', () =>
-  Wheel.setOptions({ speed: speedSelect.value })
-);
-tickSoundChk?.addEventListener('change', () =>
-  Wheel.setOptions({ tick: tickSoundChk.checked })
-);
-flashChk?.addEventListener('change', () =>
-  Wheel.setOptions({ flash: flashChk.checked })
-);
-
-// ================================================================
-// Yardımcı: backend sonucu (key) → aynı tipten rastgele dilim index'i
-// resultKey: 'pass' | 'points_10' | 'points_20' | 'points_50'
-function pickIndexForResult(resultKey) {
-  const matches = Wheel.WHEEL_SEGMENTS
-    .map((seg, i) => [seg.key, i])
-    .filter(([k]) => k === resultKey)
-    .map(([, i]) => i);
-
-  // Güvenlik: eşleşme yoksa rasgele bir dilime düş
-  if (!matches.length) return Math.floor(Math.random() * Wheel.WHEEL_SEGMENTS.length);
-  return matches[Math.floor(Math.random() * matches.length)];
-}
-// ================================================================
-
-// --- Login/Logout
 loginBtn.addEventListener('click', () => loginModal.showModal());
 confirmLogin.addEventListener('click', (e) => {
   e.preventDefault();
   const raw = usernameInput.value.trim().replace(/^@/, '');
-  if (raw) { setUsername(raw); refreshAuthUI(); updateProfile(); }
+  if (raw) { setUsername(raw); refreshAuthUI(); }
   loginModal.close();
 });
-logoutBtn.addEventListener('click', () => { clearSession(); refreshAuthUI(); updateProfile(); });
+logoutBtn.addEventListener('click', () => { clearSession(); refreshAuthUI(); });
+
 popupClose.addEventListener('click', () => popup.close());
 
-// --- Spin akışı
+// ✅ Spin işlemi
 spinBtn.addEventListener('click', async () => {
-  const username = getUsername();
-  if (!username) { loginModal.showModal(); return; }
-
+  const u = getUsername();
+  if (!u) { loginModal.showModal(); return; }
   spinBtn.disabled = true;
 
-  // Backend URL'lerini (varsa) supabaseClient.js içinde window.* olarak set ettiğini varsayıyorum:
-  // window.EDGE_BASE = 'https://<your-supabase-edge>.functions.supabase.co';
-  // /spin endpoint'i: { ok:true, result:{ key:'points_10'|'points_20'|'points_50'|'pass', points:number } }
-  let result = null;
-
   try {
-    if (window.EDGE_BASE) {
-      const res = await fetch(`${window.EDGE_BASE}/spin`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username })
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.message || 'Spin başarısız');
-      result = data.result; // { key, points }
-    } else {
-      // ---- Fallback DEMO (backend yoksa) ----
-      // %1 → +50, %6 → +20, %18 → +10, kalan PASS
-      const r = Math.random();
-      if      (r < 0.01) result = { key: 'points_50', points: 50 };
-      else if (r < 0.07) result = { key: 'points_20', points: 20 };
-      else if (r < 0.25) result = { key: 'points_10', points: 10 };
-      else               result = { key: 'pass',      points: 0  };
-    }
+    // Supabase Edge Function çağrısı
+    const resp = await fetch(`${window.EDGE_BASE}/spin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: u })
+    });
 
-    // Hangi dilime çevireceğimizi seç
-    const idx = pickIndexForResult(result.key);
+    if (!resp.ok) throw new Error("Spin isteği başarısız");
 
-    // Çevrilince popup + (opsiyonel) profil güncelle
-    Wheel.spinWheelToIndex(wheelCanvas, idx, async () => {
-      const label =
-        result.key === 'pass'      ? 'PASS'
-      : result.key === 'points_10' ? '+10 Puan'
-      : result.key === 'points_20' ? '+20 Puan'
-      : result.key === 'points_50' ? '+50 Puan'
-      : result.key;
+    const data = await resp.json();
+    console.log("Spin sonucu:", data);
 
-      showPopup('Sonuç', `Kazandın: ${label}`);
-      await updateProfile();
+    // Backend’den gelen key’e göre doğru dilimi bul
+    const idx = pickIndexForResult(data.result.key);
+
+    Wheel.spinWheelToIndex(wheelCanvas, idx, () => {
+      popupTitle.textContent = "Sonuç";
+      popupMsg.textContent = "Kazandın: " + Wheel.WHEEL_SEGMENTS[idx].label;
+      popup.showModal();
       spinBtn.disabled = false;
     });
 
   } catch (err) {
-    console.error(err);
-    showPopup('Hata', (err && err.message) || 'Spin sırasında bir sorun oluştu.');
+    console.error("Spin hatası:", err);
+    popupTitle.textContent = "Hata";
+    popupMsg.textContent = err.message;
+    popup.showModal();
     spinBtn.disabled = false;
   }
 });
 
-// --- İlk yüklemede UI
 refreshAuthUI();
-updateProfile();
-// ================================================================
-// ===================== / app.js – bitti =========================
+
+
+// ✅ Yardımcı: result.key → doğru dilim
+function pickIndexForResult(resultKey) {
+  const matches = Wheel.WHEEL_SEGMENTS
+    .map((seg, i) => [seg.key, i])
+    .filter(([k]) => k === resultKey)
+    .map(([_, i]) => i);
+
+  return matches[Math.floor(Math.random() * matches.length)];
+}
