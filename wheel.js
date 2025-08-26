@@ -7,20 +7,23 @@
 // - Hız modları, tık sesi, kazanan dilimde parlama
 // - Opsiyonel merkez logo: repo köküne logo.png koy
 
+// ---- SEGMENTLER (12 adet) ----
+// 3× 10 puan, 2× 20 puan, 1× 50 puan, geri kalan 6 dilim PASS
 const WHEEL_SEGMENTS = [
-  { key: 'promocode',  label: 'Promocode' },
-  { key: 'points',     label: '+ Puan'   },
-  { key: 'pass',       label: 'Pass'     },
-  { key: 'points',     label: '+ Puan'   },
-  { key: 'extra_spin', label: 'Ekstra'   },
-  { key: 'points',     label: '+ Puan'   },
-  { key: 'promocode',  label: 'Promocode'},
-  { key: 'points',     label: '+ Puan'   },
-  { key: 'pass',       label: 'Pass'     },
-  { key: 'points',     label: '+ Puan'   },
-  { key: 'extra_spin', label: 'Ekstra'   },
-  { key: 'points',     label: '+ Puan'   },
+  { key: 'pass',       label: 'PASS' },
+  { key: 'points_10',  label: '+ 10' },
+  { key: 'pass',       label: 'PASS' },
+  { key: 'points_20',  label: '+ 20' },
+  { key: 'pass',       label: 'PASS' },
+  { key: 'points_10',  label: '+ 10' },
+  { key: 'pass',       label: 'PASS' },
+  { key: 'points_50',  label: '+ 50' }, // nadir (backend %1)
+  { key: 'pass',       label: 'PASS' },
+  { key: 'points_20',  label: '+ 20' },
+  { key: 'pass',       label: 'PASS' },
+  { key: 'points_10',  label: '+ 10' },
 ];
+
 
 // Doygun casino renk paleti (12 renk)
 const PALETTE = [
