@@ -2,67 +2,91 @@
 <html lang="tr">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <title>Yılın Siteleri – Özel Bot</title>
-    <link href="styles.css" rel="stylesheet" />
 
-    <!-- GSAP animasyon -->
+    <!-- Stil dosyanız -->
+    <link rel="stylesheet" href="styles.css" />
+
+    <!-- Kütüphaneler -->
     <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
-    <!-- Supabase JS (SDK v2) -->
     <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <!-- Uygulama scriptleri (sıra önemli) -->
     <script defer src="supabaseClient.js"></script>
     <script defer src="wheel.js"></script>
     <script defer src="app.js"></script>
+
+    <noscript>
+      Bu uygulamayı kullanmak için JavaScript etkin olmalıdır.
+    </noscript>
   </head>
   <body>
-    <div class="bg">
+    <!-- Arka plan efektleri (opsiyonel) -->
+    <div class="bg" aria-hidden="true">
       <div class="bg-gradient"></div>
       <div class="bg-stars"></div>
       <div class="bg-glow"></div>
     </div>
 
     <main class="container">
+      <!-- Üst başlık ve kullanıcı kutusu -->
       <header class="header">
         <h1 class="title">Yılın Siteleri – Özel Bot</h1>
+
         <div class="userbox" id="userBox">
+          <!-- Giriş butonu (oturum yokken görünür) -->
           <button id="loginBtn" class="btn btn-primary">Giriş</button>
-          <div class="user-info hidden" id="userInfo">
-            <span id="usernameLabel"></span>
-            <button id="logoutBtn" class="btn btn-ghost">Çıkış</button>
+
+          <!-- Oturum bilgisi (oturum varken görünür) -->
+          <div class="user-info hidden" id="userInfo" aria-live="polite">
+            <span id="usernameLabel">@kullanici</span>
+            <button id="logoutBtn" class="btn btn-ghost" type="button">Çıkış</button>
           </div>
         </div>
       </header>
 
+      <!-- Ana bölüm: çark + profil kartları -->
       <section class="hero">
         <div class="wheel-wrap">
-          <canvas id="wheelCanvas" width="480" height="480"></canvas>
+          <canvas
+            id="wheelCanvas"
+            width="480"
+            height="480"
+            aria-label="Ödül Çarkı"
+          ></canvas>
           <div class="wheel-pointer" aria-hidden="true"></div>
 
           <!-- Kontroller -->
           <div class="wheel-toolbar">
-            <label>Hız:
-              <select id="speedSelect">
-                <option value="fast">Hızlı</option>
-                <option value="normal" selected>Orta</option>
-                <option value="slow">Yavaş</option>
-              </select>
-            </label>
+            <label for="speedSelect">Hız:</label>
+            <select id="speedSelect" aria-label="Çark Hızı">
+              <option value="fast">Hızlı</option>
+              <option value="normal" selected>Orta</option>
+              <option value="slow">Yavaş</option>
+            </select>
+
             <label class="ml">
               <input type="checkbox" id="tickSoundChk" checked />
               Tık sesi
             </label>
+
             <label class="ml">
               <input type="checkbox" id="flashChk" checked />
               Kazanan parlasın
             </label>
           </div>
 
-          <button id="spinBtn" class="btn btn-neon">ÇEVİR</button>
-          <p class="spin-note">Günde 1 kez çevirebilirsin. Ekstra spin çıkarsa +1 hakkın olur!</p>
+          <button id="spinBtn" class="btn btn-neon" type="button">ÇEVİR</button>
+          <p class="spin-note">
+            Günde 1 kez çevirebilirsin. Ekstra spin çıkarsa +1 hakkın olur!
+          </p>
         </div>
 
+        <!-- Profil ve sayaçlar -->
         <aside class="profile">
           <div class="card">
             <h3>Profilim</h3>
@@ -72,6 +96,7 @@
               <li>Puanım: <strong id="myPoints">0</strong></li>
             </ul>
           </div>
+
           <div class="card">
             <h3>Toplam Katılım</h3>
             <div class="counter" id="totalCounter">0</div>
@@ -79,10 +104,12 @@
         </aside>
       </section>
 
+      <!-- Leaderboard -->
       <section class="leaderboard-section">
         <h2>Leaderboard</h2>
-        <!-- JS bu ID'yi bekliyor -->
-        <ul id="leaderboardList" class="leaderboard"></ul>
+        <ul id="leaderboardList" class="leaderboard" aria-live="polite">
+          <!-- JS doldurur -->
+        </ul>
       </section>
     </main>
 
@@ -90,18 +117,32 @@
     <dialog id="loginModal" class="modal">
       <form method="dialog" class="modal-box" id="loginForm">
         <h3>Telegram Kullanıcı Adı</h3>
-        <input id="usernameInput" type="text" placeholder="@kullaniciadi" required />
-        <button class="btn btn-primary" id="confirmLogin">Kaydet ve Devam Et</button>
+        <input
+          id="usernameInput"
+          type="text"
+          placeholder="@kullaniciadi"
+          autocomplete="username"
+          required
+        />
+        <button class="btn btn-primary" id="confirmLogin" type="submit">
+          Kaydet ve Devam Et
+        </button>
       </form>
     </dialog>
 
-    <!-- Popup -->
-    <dialog id="popup" class="popup">
+    <!-- Sonuç Popup -->
+    <dialog id="popup" class="popup" aria-live="polite">
       <div class="popup-box">
         <h3 id="popupTitle">Sonuç</h3>
         <p id="popupMsg">—</p>
-        <button class="btn btn-primary" id="popupClose">Kapat</button>
+        <button class="btn btn-primary" id="popupClose" type="button">
+          Kapat
+        </button>
       </div>
     </dialog>
+
+    <footer class="footer">
+      <small>© 2025 Yılın Siteleri</small>
+    </footer>
   </body>
 </html>
