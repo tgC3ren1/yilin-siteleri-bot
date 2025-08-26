@@ -10,6 +10,26 @@ const spinBtn = document.getElementById('spinBtn');
 const wheelCanvas = document.getElementById('wheelCanvas');
 Wheel.drawWheel(wheelCanvas);
 
+// Kontroller
+const speedSelect = document.getElementById('speedSelect');
+const tickSoundChk = document.getElementById('tickSoundChk');
+const flashChk = document.getElementById('flashChk'); // ✅
+
+
+// Varsayılanları Wheel'e gönder
+Wheel.setOptions({ speed: speedSelect.value, tick: tickSoundChk.checked, flash: flashChk.checked });
+
+// Değişiklikleri dinle
+speedSelect?.addEventListener('change', () =>
+  Wheel.setOptions({ speed: speedSelect.value })
+);
+tickSoundChk?.addEventListener('change', () =>
+  Wheel.setOptions({ tick: tickSoundChk.checked })
+);
+flashChk?.addEventListener('change', () =>
+  Wheel.setOptions({ flash: flashChk.checked })
+);
+
 const popup = document.getElementById('popup');
 const popupTitle = document.getElementById('popupTitle');
 const popupMsg = document.getElementById('popupMsg');
