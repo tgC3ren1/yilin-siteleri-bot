@@ -8,10 +8,13 @@ const usernameInput = document.getElementById('usernameInput');
 const confirmLogin = document.getElementById('confirmLogin');
 
 // Profil göstergeleri
-const todayStatusEl = document.getElementById('todayStatus');
-const totalSpinsEl  = document.getElementById('totalSpins');
-const myPointsEl    = document.getElementById('myPoints');
-const totalCounterEl= document.getElementById('totalCounter');
+const todayStatusEl  = document.getElementById('todayStatus');
+const totalSpinsEl   = document.getElementById('totalSpins');
+const myPointsEl     = document.getElementById('myPoints');
+const totalCounterEl = document.getElementById('totalCounter');
+
+// Leaderboard (opsiyonel: HTML'de <ul id="leaderboardList"></ul> olsun)
+const lbEl = document.getElementById('leaderboardList');
 
 // ================== Wheel ==================
 const spinBtn = document.getElementById('spinBtn');
@@ -107,10 +110,16 @@ confirmLogin?.addEventListener('click', (e) => {
     .trim()
     .replace(/^@/, '')
     .toLowerCase();
-  if (raw) { setUsername(raw); refreshAuthUI(); }
+  if (raw) { setUsername(raw); refreshAuthUI(); refreshProfile(); refreshLeaderboard(); }
   loginModal?.close();
 });
-logoutBtn?.addEventListener('click', () => { clearSession(); refreshAuthUI(); });
+logoutBtn?.addEventListener('click', () => {
+  clearSession();
+  refreshAuthUI();
+  // UI temizle
+  updateProfileUI({points:0,total_spins:0},{total_spins:0}, undefined);
+  renderLeaderboard([]);
+});
 
 // ================== Yardımcılar ==================
 function showError(msg) {
@@ -125,6 +134,11 @@ function requiredWindowVar(name) {
     throw new Error(`${name} tanımlı değil (supabaseClient.js dosyasını kontrol et).`);
   }
   return val;
+}
+
+function safeJson(text) {
+  try { return JSON.parse(text); }
+  catch { return null; }
 }
 
 let isSpinning = false;
@@ -151,24 +165,17 @@ async function callSpin(username) {
     const text = await resp.text();
     if (!resp.ok) {
       if (resp.status === 403) {
-        // Backend döndürdüyse bugün hakkı yok
-        try {
-          const d = JSON.parse(text);
-          if (d?.reason === 'DAILY_LIMIT') {
-            // Yerel kilidi de bas
-            setLocalSpinLock();
-            updateProfileUI(d.user, d.stats, 0);
-            throw new Error("Bugünkü hakkını kullandın.");
-          }
-        } catch {}
+        const d = safeJson(text);
+        if (d?.reason === 'DAILY_LIMIT') {
+          setLocalSpinLock();
+          updateProfileUI(d.user, d.stats, 0);
+          throw new Error("Bugünkü hakkını kullandın.");
+        }
       }
       throw new Error(`Spin isteği başarısız (HTTP ${resp.status}): ${text}`);
     }
 
-    let data;
-    try { data = JSON.parse(text); } catch {
-      throw new Error(`Geçersiz JSON yanıtı: ${text}`);
-    }
+    const data = safeJson(text);
     if (!data?.ok || !data?.result?.key) {
       throw new Error(`Eksik/yanlış yanıt: ${text}`);
     }
@@ -189,6 +196,54 @@ function pickIndexForResult(resultKey) {
   return matches[Math.floor(Math.random() * matches.length)];
 }
 
+// ================== Profile & Leaderboard Fetch ==================
+async function refreshProfile() {
+  const u = getUsername();
+  if (!u) return;
+  try {
+    const EDGE_BASE = requiredWindowVar('EDGE_BASE');
+    const ANON_KEY  = requiredWindowVar('SUPABASE_ANON_KEY');
+    const resp = await fetch(`${EDGE_BASE}/profile?username=${encodeURIComponent(u)}`, {
+      headers: { Authorization: `Bearer ${ANON_KEY}` }
+    });
+    if (!resp.ok) return;
+    const data = await resp.json(); // { ok, user, stats, today_remaining }
+    if (!data?.ok) return;
+
+    updateProfileUI(data.user, data.stats, data.today_remaining);
+
+    // Buton durumu: günlük hak bittiyse kilitle (ekstra spin varsa açık)
+    if (typeof data.today_remaining === 'number') {
+      spinBtn.disabled = (data.today_remaining <= 0) || hasLocalSpinLock();
+    }
+  } catch {/* sessiz */}
+}
+
+function renderLeaderboard(items = []) {
+  if (!lbEl) return;
+  if (!Array.isArray(items) || !items.length) {
+    lbEl.innerHTML = '<li>Henüz kimse yok</li>';
+    return;
+  }
+  lbEl.innerHTML = items.map((it, i) =>
+    `<li><strong>${i+1}.</strong> @${it.username} — ${it.points ?? 0} puan (spin: ${it.total_spins ?? 0})</li>`
+  ).join('');
+}
+
+async function refreshLeaderboard() {
+  if (!lbEl) return; // HTML yoksa pas geç
+  try {
+    const EDGE_BASE = requiredWindowVar('EDGE_BASE');
+    const ANON_KEY  = requiredWindowVar('SUPABASE_ANON_KEY');
+    const resp = await fetch(`${EDGE_BASE}/leaderboard?limit=10`, {
+      headers: { Authorization: `Bearer ${ANON_KEY}` }
+    });
+    if (!resp.ok) return;
+    const data = await resp.json(); // { ok, items: [...] }
+    if (data?.ok) renderLeaderboard(data.items);
+  } catch {/* sessiz */}
+}
+
 // ================== Spin flow ==================
 spinBtn?.addEventListener('click', async () => {
   const u = getUsername();
@@ -204,7 +259,6 @@ spinBtn?.addEventListener('click', async () => {
     return;
   }
 
-  // Yerel kilit varsa direkt engelle
   if (hasLocalSpinLock()) {
     showError("Bugünkü hakkını kullandın.");
     spinBtn.disabled = true;
@@ -221,18 +275,21 @@ spinBtn?.addEventListener('click', async () => {
     updateProfileUI(data.user, data.stats, data.today_remaining);
 
     const idx = pickIndexForResult(data.result.key);
-    Wheel.spinWheelToIndex(wheelCanvas, idx, () => {
+    Wheel.spinWheelToIndex(wheelCanvas, idx, async () => {
       popupTitle.textContent = "Sonuç";
       popupMsg.textContent = "Kazandın: " + Wheel.WHEEL_SEGMENTS[idx].label;
       popup.showModal();
+
+      // Sunucudan kesin bilgiyi tekrar çek (yarış koşullarını önlemek için)
+      await refreshProfile();
+      await refreshLeaderboard();
 
       // Bugünkü hak bitti ise yerel kilidi bas & butonu kapat
       if (!data.today_remaining || data.today_remaining <= 0) {
         setLocalSpinLock();
         spinBtn.disabled = true;
       } else {
-        // Ekstra spin varsa buton açık kalsın
-        spinBtn.disabled = false;
+        spinBtn.disabled = false; // ekstra spin kazanmış olabilir
       }
       isSpinning = false;
     });
@@ -242,9 +299,11 @@ spinBtn?.addEventListener('click', async () => {
     showError(String(err?.message || err));
     isSpinning = false;
 
-    // Eğer hata limitten geldiyse buton kilitli kalsın
     if (!hasLocalSpinLock()) spinBtn.disabled = false;
   }
 });
 
+// ================== İlk yüklemede çek ==================
 refreshAuthUI();
+refreshProfile();
+refreshLeaderboard();
