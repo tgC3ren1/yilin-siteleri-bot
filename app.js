@@ -1,3 +1,4 @@
+// ================== Auth / UI ==================
 const loginBtn = document.getElementById('loginBtn');
 const logoutBtn = document.getElementById('logoutBtn');
 const userInfo = document.getElementById('userInfo');
@@ -6,6 +7,7 @@ const loginModal = document.getElementById('loginModal');
 const usernameInput = document.getElementById('usernameInput');
 const confirmLogin = document.getElementById('confirmLogin');
 
+// ================== Wheel ==================
 const spinBtn = document.getElementById('spinBtn');
 const wheelCanvas = document.getElementById('wheelCanvas');
 Wheel.drawWheel(wheelCanvas);
@@ -15,17 +17,32 @@ const speedSelect = document.getElementById('speedSelect');
 const tickSoundChk = document.getElementById('tickSoundChk');
 const flashChk = document.getElementById('flashChk');
 
-Wheel.setOptions({ speed: speedSelect.value, tick: tickSoundChk.checked, flash: flashChk.checked });
+// Varsayılanları aktar
+Wheel.setOptions({
+  speed: speedSelect?.value || 'normal',
+  tick: !!tickSoundChk?.checked,
+  flash: !!flashChk?.checked
+});
 
-speedSelect?.addEventListener('change', () => Wheel.setOptions({ speed: speedSelect.value }));
-tickSoundChk?.addEventListener('change', () => Wheel.setOptions({ tick: tickSoundChk.checked }));
-flashChk?.addEventListener('change', () => Wheel.setOptions({ flash: flashChk.checked }));
+// Değişiklikleri dinle
+speedSelect?.addEventListener('change', () =>
+  Wheel.setOptions({ speed: speedSelect.value })
+);
+tickSoundChk?.addEventListener('change', () =>
+  Wheel.setOptions({ tick: tickSoundChk.checked })
+);
+flashChk?.addEventListener('change', () =>
+  Wheel.setOptions({ flash: flashChk.checked })
+);
 
+// Popup
 const popup = document.getElementById('popup');
 const popupTitle = document.getElementById('popupTitle');
 const popupMsg = document.getElementById('popupMsg');
 const popupClose = document.getElementById('popupClose');
+popupClose?.addEventListener('click', () => popup.close());
 
+// ================== Local auth helpers ==================
 function getUsername() { return localStorage.getItem('username'); }
 function setUsername(u) { localStorage.setItem('username', u); }
 function clearSession() { localStorage.removeItem('username'); }
@@ -33,30 +50,35 @@ function clearSession() { localStorage.removeItem('username'); }
 function refreshAuthUI() {
   const u = getUsername();
   if (!u) {
-    loginBtn.classList.remove('hidden');
-    userInfo.classList.add('hidden');
+    loginBtn?.classList.remove('hidden');
+    userInfo?.classList.add('hidden');
   } else {
-    loginBtn.classList.add('hidden');
-    userInfo.classList.remove('hidden');
-    usernameLabel.textContent = '@' + u;
+    loginBtn?.classList.add('hidden');
+    userInfo?.classList.remove('hidden');
+    if (usernameLabel) usernameLabel.textContent = '@' + u;
   }
 }
 
-loginBtn.addEventListener('click', () => loginModal.showModal());
-confirmLogin.addEventListener('click', (e) => {
+loginBtn?.addEventListener('click', () => loginModal?.showModal());
+confirmLogin?.addEventListener('click', (e) => {
   e.preventDefault();
-  const raw = usernameInput.value.trim().replace(/^@/, '');
+  const raw = (usernameInput?.value || '').trim().replace(/^@/, '');
   if (raw) { setUsername(raw); refreshAuthUI(); }
-  loginModal.close();
+  loginModal?.close();
 });
-logoutBtn.addEventListener('click', () => { clearSession(); refreshAuthUI(); });
+logoutBtn?.addEventListener('click', () => { clearSession(); refreshAuthUI(); });
 
-popupClose.addEventListener('click', () => popup.close());
-
-// ✅ Spin işlemi
-spinBtn.addEventListener('click', async () => {
+// ================== Spin flow ==================
+spinBtn?.addEventListener('click', async () => {
   const u = getUsername();
-  if (!u) { loginModal.showModal(); return; }
+  if (!u) { loginModal?.showModal(); return; }
+  if (!window.EDGE_BASE) {
+    popupTitle.textContent = "Hata";
+    popupMsg.textContent = "EDGE_BASE tanımlı değil (supabaseClient.js kontrol et).";
+    popup.showModal();
+    return;
+  }
+
   spinBtn.disabled = true;
 
   try {
@@ -67,10 +89,16 @@ spinBtn.addEventListener('click', async () => {
       body: JSON.stringify({ username: u })
     });
 
-    if (!resp.ok) throw new Error("Spin isteği başarısız");
+    const text = await resp.text(); // debug kolaylığı
+    if (!resp.ok) {
+      throw new Error(`Spin isteği başarısız (HTTP ${resp.status}): ${text}`);
+    }
 
-    const data = await resp.json();
-    console.log("Spin sonucu:", data);
+    const data = JSON.parse(text);
+    // Beklenen: { ok: true, result: { key: 'points_10' | 'points_20' | 'points_50' | 'pass', points: number } }
+    if (!data?.ok || !data?.result?.key) {
+      throw new Error(`Geçersiz yanıt: ${text}`);
+    }
 
     // Backend’den gelen key’e göre doğru dilimi bul
     const idx = pickIndexForResult(data.result.key);
@@ -85,7 +113,7 @@ spinBtn.addEventListener('click', async () => {
   } catch (err) {
     console.error("Spin hatası:", err);
     popupTitle.textContent = "Hata";
-    popupMsg.textContent = err.message;
+    popupMsg.textContent = String(err?.message || err);
     popup.showModal();
     spinBtn.disabled = false;
   }
@@ -93,13 +121,18 @@ spinBtn.addEventListener('click', async () => {
 
 refreshAuthUI();
 
-
-// ✅ Yardımcı: result.key → doğru dilim
+// ================== Helpers ==================
+// result.key -> doğru dilimin index'i
 function pickIndexForResult(resultKey) {
+  // Wheel.WHEEL_SEGMENTS: [{ key: 'points_10', label: '+10', color: ... }, ...]
   const matches = Wheel.WHEEL_SEGMENTS
     .map((seg, i) => [seg.key, i])
     .filter(([k]) => k === resultKey)
     .map(([_, i]) => i);
 
+  // Hiç eşleşme yoksa 0'a dön (fallback)
+  if (!matches.length) return 0;
+
+  // Aynı tipten birden fazla dilim varsa rastgele birini seç
   return matches[Math.floor(Math.random() * matches.length)];
 }
