@@ -1,42 +1,70 @@
-// --- Realistic Prize Wheel (Canvas + GSAP) ---
+// ---------- REALISTIC 12-SEGMENT WHEEL (Canvas + GSAP) ----------
+// Backend anahtarlarıyla uyumlu: promocode, points, pass, extra_spin
+
 const WHEEL_SEGMENTS = [
   { key: 'promocode',  label: 'Promocode' },
-  { key: 'points',     label: '+ Puan' },
-  { key: 'pass',       label: 'Pass' },
-  { key: 'points',     label: '+ Puan' },
-  { key: 'extra_spin', label: 'Ekstra Spin' },
-  { key: 'points',     label: '+ Puan' },
-  { key: 'pass',       label: 'Pass' },
-  { key: 'points',     label: '+ Puan' },
+  { key: 'points',     label: '+ Puan'   },
+  { key: 'pass',       label: 'Pass'     },
+  { key: 'points',     label: '+ Puan'   },
+  { key: 'extra_spin', label: 'Ekstra'   },
+  { key: 'points',     label: '+ Puan'   },
+  { key: 'promocode',  label: 'Promocode'},
+  { key: 'points',     label: '+ Puan'   },
+  { key: 'pass',       label: 'Pass'     },
+  { key: 'points',     label: '+ Puan'   },
+  { key: 'extra_spin', label: 'Ekstra'   },
+  { key: 'points',     label: '+ Puan'   },
 ];
 
-let currentRotation = 0; // derece
-let tickIndex = -1;      // tick tetiklemek için
+// Marka paleti (12 renk) — istersen burayı kendi renklerinle değiştir
+const PALETTE = [
+  '#0ea5e9', '#6ee7b7', '#f59e0b', '#a78bfa',
+  '#22d3ee', '#34d399', '#fb923c', '#c084fc',
+  '#38bdf8', '#86efac', '#fbbf24', '#d8b4fe'
+];
 
-// kısa "klik" sesi
+let currentRotation = 0;          // derece
+let tickIndex = -1;               // tick tetiklemek için
+let options = { speed: 'normal', tick: true, flash: true };
+let centerLogo = null;            // Image (logo.png / logo.svg varsa)
+let lastDraw = { cx: 0, cy: 0, R: 0 }; // highlight için
+
+// Kısa "klik" sesi (gömülü)
 const tickAudio = new Audio(
   "data:audio/wav;base64,UklGRoQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYAAAChAAAAPwAAACoAAABtZGF0YUEAAACAgYCBgYGBgYCAgICAgYGBgYGBgYGBgYGBgYGBgICAgICAgYGBgYGBgYGAf39/f39/f4GBgYGBgYGBgYCAgICAgICAgIGBgYGBgYGBgYGBgYGBgYGBgICAgICAgIGBgYGBgYGBgYGBgYGBgYGAg=="
 );
 
-function drawCurvedText(ctx, text, cx, cy, radius, angle) {
+// İsteğe bağlı merkez logo
+(function loadLogo(){
+  const img = new Image();
+  img.onload = () => { centerLogo = img; };
+  img.onerror = () => { centerLogo = null; };
+  img.src = 'logo.png'; // repo köküne logo.png koyarsan otomatik gelir
+})();
+
+function setOptions(next) {
+  options = { ...options, ...next };
+}
+
+function drawSegmentText(ctx, text, cx, cy, radius, angle) {
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(angle);
+
+  ctx.font = '700 18px Inter, Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+
+  // Kontrast için stroke + fill
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = 'rgba(0,0,0,.45)';
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 16px Inter, Arial, sans-serif';
-  ctx.rotate(-Math.PI / 2);
-  ctx.save();
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    ctx.rotate((Math.PI * 2) / (text.length * 24));
-    ctx.save();
-    ctx.translate(0, -radius);
-    ctx.fillText(ch, 0, 0);
-    ctx.restore();
-  }
-  ctx.restore();
+
+  // Yazıyı segmentin ortasına yakın konumda çiz
+  const r = radius * 0.70;
+  ctx.strokeText(text.toUpperCase(), 0, -r);
+  ctx.fillText(text.toUpperCase(), 0, -r);
+
   ctx.restore();
 }
 
@@ -45,10 +73,11 @@ function drawWheel(canvas) {
   const { width, height } = canvas;
   const cx = width / 2, cy = height / 2;
   const R = Math.min(cx, cy) - 20;
+  lastDraw = { cx, cy, R };
 
   ctx.clearRect(0, 0, width, height);
 
-  // arka gölge
+  // Arka gölge
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, R + 12, 0, Math.PI * 2);
@@ -58,7 +87,7 @@ function drawWheel(canvas) {
   ctx.fill();
   ctx.restore();
 
-  // dış metal halka
+  // Dış metal halka
   const ringGrad = ctx.createLinearGradient(0, 0, width, height);
   ringGrad.addColorStop(0, '#4d5e7a');
   ringGrad.addColorStop(0.5, '#9aa8c1');
@@ -69,16 +98,16 @@ function drawWheel(canvas) {
   ctx.strokeStyle = ringGrad;
   ctx.stroke();
 
-  // segmentler
+  // 12 segment
   const n = WHEEL_SEGMENTS.length;
   for (let i = 0; i < n; i++) {
     const start = (i / n) * Math.PI * 2 + (Math.PI / n);
     const end   = ((i + 1) / n) * Math.PI * 2 + (Math.PI / n);
 
-    const hue = (i * (360 / n)) | 0;
-    const segGrad = ctx.createRadialGradient(cx, cy, R*0.2, cx, cy, R);
-    segGrad.addColorStop(0, `hsla(${(hue+18)%360}, 85%, 62%, .98)`);
-    segGrad.addColorStop(1, `hsla(${(hue+340)%360}, 90%, 44%, .98)`);
+    // Düz ama doygun renk + hafif radial parlama
+    const segGrad = ctx.createRadialGradient(cx, cy, R*0.15, cx, cy, R);
+    segGrad.addColorStop(0, shade(PALETTE[i], 0.15));
+    segGrad.addColorStop(1, PALETTE[i]);
 
     ctx.beginPath();
     ctx.moveTo(cx, cy);
@@ -87,7 +116,7 @@ function drawWheel(canvas) {
     ctx.fillStyle = segGrad;
     ctx.fill();
 
-    // ayraç
+    // Ayraç çizgisi
     ctx.save();
     ctx.lineWidth = 2;
     ctx.strokeStyle = 'rgba(255,255,255,.35)';
@@ -96,12 +125,12 @@ function drawWheel(canvas) {
     ctx.stroke();
     ctx.restore();
 
-    // kavisli yazı
+    // Metin
     const mid = start + (end - start) / 2;
-    drawCurvedText(ctx, WHEEL_SEGMENTS[i].label.toUpperCase(), cx, cy, R * 0.72, mid);
+    drawSegmentText(ctx, WHEEL_SEGMENTS[i].label, cx, cy, R, mid);
   }
 
-  // cam parlama
+  // Cam parlama
   ctx.save();
   const glossGrad = ctx.createLinearGradient(0, cy - R, 0, cy + R);
   glossGrad.addColorStop(0, 'rgba(255,255,255,.22)');
@@ -114,41 +143,113 @@ function drawWheel(canvas) {
   ctx.closePath();
   ctx.fillStyle = glossGrad;
   ctx.fill();
+  ctx.restore();
 
-  // merkez hub
-  const hubGrad = ctx.createRadialGradient(cx, cy, 4, cx, cy, 26);
-  hubGrad.addColorStop(0, '#d9e2f8');
-  hubGrad.addColorStop(1, '#7e8ea8');
-  ctx.beginPath();
-  ctx.arc(cx, cy, 22, 0, Math.PI * 2);
-  ctx.fillStyle = hubGrad;
-  ctx.shadowColor = 'rgba(0,0,0,.4)';
-  ctx.shadowBlur = 8;
-  ctx.fill();
+  // Merkez hub / logo
+  ctx.save();
+  if (centerLogo) {
+    const rr = 36;
+    ctx.beginPath();
+    ctx.arc(cx, cy, rr, 0, Math.PI*2);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(centerLogo, cx - rr, cy - rr, rr*2, rr*2);
+    ctx.restore();
+
+    // İnce çerçeve
+    ctx.beginPath();
+    ctx.arc(cx, cy, rr + 2, 0, Math.PI*2);
+    ctx.strokeStyle = 'rgba(255,255,255,.85)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  } else {
+    const hubGrad = ctx.createRadialGradient(cx, cy, 4, cx, cy, 26);
+    hubGrad.addColorStop(0, '#d9e2f8');
+    hubGrad.addColorStop(1, '#7e8ea8');
+    ctx.beginPath();
+    ctx.arc(cx, cy, 22, 0, Math.PI * 2);
+    ctx.fillStyle = hubGrad;
+    ctx.shadowColor = 'rgba(0,0,0,.4)';
+    ctx.shadowBlur = 8;
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// Küçük renk gölge helper'ı
+function shade(hex, amt = 0.15) {
+  const c = hex.replace('#','');
+  const n = parseInt(c,16);
+  let r = (n>>16)&255, g = (n>>8)&255, b = n&255;
+  r = Math.min(255, Math.floor(r + (255-r)*amt));
+  g = Math.min(255, Math.floor(g + (255-g)*amt));
+  b = Math.min(255, Math.floor(b + (255-b)*amt));
+  return `rgb(${r},${g},${b})`;
+}
+
+// Kazanan dilimi kısa parlama ile vurgula
+function flashWinner(canvas, index) {
+  if (!options.flash) return;
+  const ctx = canvas.getContext('2d');
+  const { cx, cy, R } = lastDraw;
+  const n = WHEEL_SEGMENTS.length;
+  const start = (index / n) * Math.PI * 2 + (Math.PI / n);
+  const end   = ((index + 1) / n) * Math.PI * 2 + (Math.PI / n);
+
+  let alpha = { v: 0 };
+  const tl = gsap.timeline();
+  for (let i=0;i<3;i++){
+    tl.to(alpha, { v: 0.85, duration: 0.12, onUpdate: draw, ease: "power2.out" })
+      .to(alpha, { v: 0,    duration: 0.22, onUpdate: draw, ease: "power2.in"  });
+  }
+
+  function draw() {
+    drawWheel(canvas); // önce normal çiz
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R, start, end);
+    ctx.closePath();
+    ctx.fillStyle = `rgba(255,255,255,${alpha.v})`;
+    ctx.shadowColor = 'rgba(255,255,255,.9)';
+    ctx.shadowBlur = 30;
+    ctx.fill();
+    ctx.restore();
+  }
 }
 
 function spinWheelToIndex(canvas, index, onDone) {
   const n = WHEEL_SEGMENTS.length;
   const segmentAngle = 360 / n;
-  const targetAngle = 360 * 6 + (segmentAngle * index) + (segmentAngle / 2);
 
+  const dur =
+    options.speed === 'fast'   ? 2.4 :
+    options.speed === 'slow'   ? 5.0 :
+                                 3.6;
+
+  const targetAngle = 360 * 6 + (segmentAngle * index) + (segmentAngle/2);
   tickIndex = Math.floor((currentRotation % 360) / segmentAngle);
 
   gsap.to(canvas, {
-    duration: 3.6,
+    duration: dur,
     ease: "power4.inOut",
     rotate: -targetAngle,
     onUpdate: function () {
       const r = Math.abs(this.targets()[0]._gsap.rotation);
       currentRotation = r;
+      if (!options.tick) return;
       const idx = Math.floor(((r % 360) / segmentAngle));
       if (idx !== tickIndex) {
         tickIndex = idx;
         try { tickAudio.currentTime = 0; tickAudio.play(); } catch {}
       }
     },
-    onComplete: onDone,
+    onComplete: () => {
+      if (options.flash) flashWinner(canvas, index);
+      if (onDone) onDone();
+    },
   });
 }
 
-window.Wheel = { drawWheel, spinWheelToIndex, WHEEL_SEGMENTS };
+window.Wheel = { drawWheel, spinWheelToIndex, WHEEL_SEGMENTS, setOptions };
