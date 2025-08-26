@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Yılın Siteleri – Özel Bot</title>
+    <link href="styles.css" rel="stylesheet" />
+
+    <!-- GSAP animasyon -->
+    <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <!-- Supabase JS -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Uygulama scriptleri -->
+    <script defer src="supabaseClient.js"></script>
+    <script defer src="wheel.js"></script>
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <div class="bg">
+      <div class="bg-gradient"></div>
+      <div class="bg-stars"></div>
+      <div class="bg-glow"></div>
+    </div>
+
+    <main class="container">
+      <header class="header">
+        <h1 class="title">Yılın Siteleri – Özel Bot</h1>
+        <div class="userbox" id="userBox">
+          <button id="loginBtn" class="btn btn-primary">Giriş</button>
+          <div class="user-info hidden" id="userInfo">
+            <span id="usernameLabel"></span>
+            <button id="logoutBtn" class="btn btn-ghost">Çıkış</button>
+          </div>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div class="wheel-wrap">
+          <canvas id="wheelCanvas" width="360" height="360"></canvas>
+          <button id="spinBtn" class="btn btn-neon">ÇEVİR</button>
+          <p class="spin-note">Günde 1 kez çevirebilirsin. Ekstra spin çıkarsa +1 hakkın olur!</p>
+        </div>
+
+        <aside class="profile">
+          <div class="card">
+            <h3>Profilim</h3>
+            <ul>
+              <li>Bugünkü hak: <strong id="todayStatus">—</strong></li>
+              <li>Toplam spin: <strong id="totalSpins">0</strong></li>
+              <li>Puanım: <strong id="myPoints">0</strong></li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Toplam Katılım</h3>
+            <div class="counter" id="totalCounter">0</div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="leaderboard-section">
+        <h2>Leaderboard</h2>
+        <div class="leaderboard" id="leaderboard"></div>
+      </section>
+    </main>
+
+    <!-- Login Modal -->
+    <dialog id="loginModal" class="modal">
+      <form method="dialog" class="modal-box" id="loginForm">
+        <h3>Telegram Kullanıcı Adı</h3>
+        <input id="usernameInput" type="text" placeholder="@kullaniciadi" required />
+        <button class="btn btn-primary" id="confirmLogin">Kaydet ve Devam Et</button>
+      </form>
+    </dialog>
+
+    <!-- Popup -->
+    <dialog id="popup" class="popup">
+      <div class="popup-box">
+        <h3 id="popupTitle">Sonuç</h3>
+        <p id="popupMsg">—</p>
+        <button class="btn btn-primary" id="popupClose">Kapat</button>
+      </div>
+    </dialog>
+  </body>
+</html>
