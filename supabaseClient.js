@@ -1,9 +1,8 @@
-// Buradaki 3 satırı kendi Supabase bilgilerinle doldur
-window.SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";
-window.SUPABASE_ANON_KEY = "YOUR-ANON-KEY";
-window.EDGE_BASE = "https://YOUR-PROJECT.functions.supabase.co";
+// frontend/supabaseClient.js
 
-const { createClient } = window.supabase;
-window.supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: false },
-});
+// 🔑 Supabase proje ayarların
+window.SUPABASE_URL = "https://YOUR-PROJECT-REF.supabase.co";   // Project Settings > API > URL
+window.SUPABASE_ANON_KEY = "eyJhbGciOi...";                     // Project Settings > API > anon public
+
+// 🌐 Edge Functions base URL (spin vb.)
+window.EDGE_BASE = "https://YOUR-PROJECT-REF.functions.supabase.co";
