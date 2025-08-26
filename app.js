@@ -7,15 +7,21 @@ const loginModal = document.getElementById('loginModal');
 const usernameInput = document.getElementById('usernameInput');
 const confirmLogin = document.getElementById('confirmLogin');
 
+// Profil göstergeleri
+const todayStatusEl = document.getElementById('todayStatus');
+const totalSpinsEl  = document.getElementById('totalSpins');
+const myPointsEl    = document.getElementById('myPoints');
+const totalCounterEl= document.getElementById('totalCounter');
+
 // ================== Wheel ==================
 const spinBtn = document.getElementById('spinBtn');
 const wheelCanvas = document.getElementById('wheelCanvas');
 Wheel.drawWheel(wheelCanvas);
 
 // Kontroller
-const speedSelect = document.getElementById('speedSelect');
+const speedSelect  = document.getElementById('speedSelect');
 const tickSoundChk = document.getElementById('tickSoundChk');
-const flashChk = document.getElementById('flashChk');
+const flashChk     = document.getElementById('flashChk');
 
 // Varsayılanları aktar
 Wheel.setOptions({
@@ -38,7 +44,7 @@ flashChk?.addEventListener('change', () =>
 // Popup
 const popup = document.getElementById('popup');
 const popupTitle = document.getElementById('popupTitle');
-const popupMsg = document.getElementById('popupMsg');
+const popupMsg   = document.getElementById('popupMsg');
 const popupClose = document.getElementById('popupClose');
 popupClose?.addEventListener('click', () => popup.close());
 
@@ -46,6 +52,37 @@ popupClose?.addEventListener('click', () => popup.close());
 function getUsername() { return localStorage.getItem('username'); }
 function setUsername(u) { localStorage.setItem('username', u); }
 function clearSession() { localStorage.removeItem('username'); }
+
+function todayKey() {
+  // YYYY-MM-DD
+  const d = new Date();
+  return d.toISOString().slice(0,10);
+}
+function setLocalSpinLock() {
+  localStorage.setItem(`spun_${todayKey()}`, '1');
+}
+function hasLocalSpinLock() {
+  return localStorage.getItem(`spun_${todayKey()}`) === '1';
+}
+
+function updateProfileUI(user = {}, stats = {}, today_remaining = undefined) {
+  if (typeof today_remaining === 'number') {
+    if (today_remaining > 0) {
+      todayStatusEl && (todayStatusEl.textContent = `✔ (${today_remaining} hak)`);
+    } else {
+      todayStatusEl && (todayStatusEl.textContent = '—');
+    }
+  }
+  if (typeof user.total_spins === 'number') {
+    totalSpinsEl && (totalSpinsEl.textContent = user.total_spins);
+  }
+  if (typeof user.points === 'number') {
+    myPointsEl && (myPointsEl.textContent = user.points);
+  }
+  if (typeof stats.total_spins === 'number') {
+    totalCounterEl && (totalCounterEl.textContent = stats.total_spins);
+  }
+}
 
 function refreshAuthUI() {
   const u = getUsername();
@@ -57,6 +94,10 @@ function refreshAuthUI() {
     userInfo?.classList.remove('hidden');
     if (usernameLabel) usernameLabel.textContent = '@' + u;
   }
+  // Yerel kilit varsa butonu kapat (backend yine de kesin kurala bakacak)
+  if (hasLocalSpinLock()) {
+    spinBtn.disabled = true;
+  }
 }
 
 loginBtn?.addEventListener('click', () => loginModal?.showModal());
@@ -65,7 +106,7 @@ confirmLogin?.addEventListener('click', (e) => {
   const raw = (usernameInput?.value || '')
     .trim()
     .replace(/^@/, '')
-    .toLowerCase(); // biraz normalize edelim
+    .toLowerCase();
   if (raw) { setUsername(raw); refreshAuthUI(); }
   loginModal?.close();
 });
@@ -86,14 +127,13 @@ function requiredWindowVar(name) {
   return val;
 }
 
-// Edge function çağrısında zaman aşımı ve iyi hata mesajları
-async function callSpin(username) {
-  const EDGE_BASE = requiredWindowVar('EDGE_BASE');            // …/functions/v1  (sonunda / YOK)
-  const ANON_KEY  = requiredWindowVar('SUPABASE_ANON_KEY');
+let isSpinning = false;
 
+async function callSpin(username) {
+  const EDGE_BASE = requiredWindowVar('EDGE_BASE');            // …/functions/v1 (sonunda / yok)
+  const ANON_KEY  = requiredWindowVar('SUPABASE_ANON_KEY');
   const url = `${EDGE_BASE}/spin`;
 
-  // 12 sn timeout
   const ac = new AbortController();
   const t = setTimeout(() => ac.abort(), 12000);
 
@@ -102,18 +142,25 @@ async function callSpin(username) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${ANON_KEY}`,   // 🔒 zorunlu
+        "Authorization": `Bearer ${ANON_KEY}`,
       },
       body: JSON.stringify({ username }),
       signal: ac.signal
     });
 
-    const text = await resp.text(); // her durumda loglayabilelim
+    const text = await resp.text();
     if (!resp.ok) {
-      // 401/403 gibi durumlar için anlaşılır mesaj
-      if (resp.status === 401 || resp.status === 403) {
-        throw new Error(`Yetkilendirme reddedildi (HTTP ${resp.status}). \
-Authorization header ve anon key doğru mu? Yanıt: ${text}`);
+      if (resp.status === 403) {
+        // Backend döndürdüyse bugün hakkı yok
+        try {
+          const d = JSON.parse(text);
+          if (d?.reason === 'DAILY_LIMIT') {
+            // Yerel kilidi de bas
+            setLocalSpinLock();
+            updateProfileUI(d.user, d.stats, 0);
+            throw new Error("Bugünkü hakkını kullandın.");
+          }
+        } catch {}
       }
       throw new Error(`Spin isteği başarısız (HTTP ${resp.status}): ${text}`);
     }
@@ -122,12 +169,9 @@ Authorization header ve anon key doğru mu? Yanıt: ${text}`);
     try { data = JSON.parse(text); } catch {
       throw new Error(`Geçersiz JSON yanıtı: ${text}`);
     }
-
-    // Beklenen şema
     if (!data?.ok || !data?.result?.key) {
       throw new Error(`Eksik/yanlış yanıt: ${text}`);
     }
-
     return data;
   } finally {
     clearTimeout(t);
@@ -136,16 +180,12 @@ Authorization header ve anon key doğru mu? Yanıt: ${text}`);
 
 // result.key -> doğru dilimin index'i
 function pickIndexForResult(resultKey) {
-  // Wheel.WHEEL_SEGMENTS: [{ key: 'points_10', label: '+10', color: ... }, ...]
   const matches = Wheel.WHEEL_SEGMENTS
     .map((seg, i) => [seg.key, i])
     .filter(([k]) => k === resultKey)
     .map(([_, i]) => i);
 
-  // Hiç eşleşme yoksa 0'a dön (fallback)
   if (!matches.length) return 0;
-
-  // Aynı tipten birden fazla dilim varsa rastgele birini seç
   return matches[Math.floor(Math.random() * matches.length)];
 }
 
@@ -153,9 +193,9 @@ function pickIndexForResult(resultKey) {
 spinBtn?.addEventListener('click', async () => {
   const u = getUsername();
   if (!u) { loginModal?.showModal(); return; }
+  if (isSpinning) return;
 
   try {
-    // supabaseClient.js yüklenmiş mi?
     requiredWindowVar('SUPABASE_URL');
     requiredWindowVar('SUPABASE_ANON_KEY');
     requiredWindowVar('EDGE_BASE');
@@ -164,22 +204,46 @@ spinBtn?.addEventListener('click', async () => {
     return;
   }
 
+  // Yerel kilit varsa direkt engelle
+  if (hasLocalSpinLock()) {
+    showError("Bugünkü hakkını kullandın.");
+    spinBtn.disabled = true;
+    return;
+  }
+
+  isSpinning = true;
   spinBtn.disabled = true;
 
   try {
     const data = await callSpin(u);
+
+    // Profil/istatistikleri anında güncelle
+    updateProfileUI(data.user, data.stats, data.today_remaining);
 
     const idx = pickIndexForResult(data.result.key);
     Wheel.spinWheelToIndex(wheelCanvas, idx, () => {
       popupTitle.textContent = "Sonuç";
       popupMsg.textContent = "Kazandın: " + Wheel.WHEEL_SEGMENTS[idx].label;
       popup.showModal();
-      spinBtn.disabled = false;
+
+      // Bugünkü hak bitti ise yerel kilidi bas & butonu kapat
+      if (!data.today_remaining || data.today_remaining <= 0) {
+        setLocalSpinLock();
+        spinBtn.disabled = true;
+      } else {
+        // Ekstra spin varsa buton açık kalsın
+        spinBtn.disabled = false;
+      }
+      isSpinning = false;
     });
+
   } catch (err) {
     console.error("Spin hatası:", err);
     showError(String(err?.message || err));
-    spinBtn.disabled = false;
+    isSpinning = false;
+
+    // Eğer hata limitten geldiyse buton kilitli kalsın
+    if (!hasLocalSpinLock()) spinBtn.disabled = false;
   }
 });
 
