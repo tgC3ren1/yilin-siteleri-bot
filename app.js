@@ -5,6 +5,8 @@ const userInfo       = document.getElementById('userInfo');
 const usernameLabel  = document.getElementById('usernameLabel');
 const loginModal     = document.getElementById('loginModal');
 const usernameInput  = document.getElementById('usernameInput');
+const phoneInput     = document.getElementById('phoneInput');     // NEW
+const passwordInput  = document.getElementById('passwordInput');  // NEW
 const confirmLogin   = document.getElementById('confirmLogin');
 
 /* Profil göstergeleri */
@@ -73,13 +75,67 @@ function refreshAuthUI() {
   if (hasLocalSpinLock()) spinBtn.disabled = true;
 }
 
+/* ================== Register helper (optional) ================== */
+/** Telefon + şifre verilmişse Edge Function’a kayıt/güncelleme isteği atar. */
+async function tryRegisterOrUpdate({ username, phone, password }) {
+  // Kullanıcı sadece username girdiyse kayıt çağrısı yapmadan sessizce geç.
+  if (!phone && !password) return;
+
+  try {
+    const EDGE_BASE = requiredWindowVar('EDGE_BASE');
+    const ANON_KEY  = requiredWindowVar('SUPABASE_ANON_KEY');
+
+    const resp = await fetch(`${EDGE_BASE}/spin?register=1`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${ANON_KEY}`,
+      },
+      body: JSON.stringify({ username, phone, password })
+    });
+
+    // Backend bu endpoint’i henüz uygulamadıysa hata verebilir;
+    // yine de kullanıcıyı engellemiyoruz.
+    if (!resp.ok) {
+      // Debug için görmek isterseniz:
+      // const t = await resp.text(); console.warn('Register failed:', t);
+      return;
+    }
+    // İsterseniz başarı mesajı gösterebilirsiniz:
+    // const data = await resp.json(); console.log('Register OK', data);
+  } catch {
+    // Sessiz: kayıt zorunlu değil
+  }
+}
+
+/* ================== Login/Register flow ================== */
 loginBtn?.addEventListener('click', () => loginModal?.showModal());
-confirmLogin?.addEventListener('click', (e) => {
+
+confirmLogin?.addEventListener('click', async (e) => {
   e.preventDefault();
-  const raw = (usernameInput?.value || '').trim().replace(/^@/,'').toLowerCase();
-  if (raw) { setUsername(raw); refreshAuthUI(); refreshProfile(); refreshLeaderboard(); }
-  loginModal?.close();
+
+  const rawUser = (usernameInput?.value || '').trim().replace(/^@/,'').toLowerCase();
+  if (!rawUser) return;
+
+  // Telefon & şifre (opsiyonel)
+  const phone    = (phoneInput?.value || '').trim();
+  const password = (passwordInput?.value || '').trim();
+
+  // Varsa Edge’e kayıt/güncelleme dene (başarısız olsa bile devam ederiz)
+  await tryRegisterOrUpdate({ username: rawUser, phone, password });
+
+  // Local oturum
+  setUsername(rawUser);
+  refreshAuthUI();
+  await refreshProfile();
+  await refreshLeaderboard();
+
+  // Modal kapat & alanları temizle (isteğe bağlı)
+  if (loginModal) loginModal.close();
+  if (passwordInput) passwordInput.value = '';
 });
+
+/* Çıkış */
 logoutBtn?.addEventListener('click', () => {
   clearSession();
   refreshAuthUI();
