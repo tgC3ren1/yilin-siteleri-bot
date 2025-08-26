@@ -2,99 +2,57 @@
 <html lang="tr">
   <head>
     <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Yılın Siteleri – Özel Bot</title>
 
-    <!-- Genel stil dosyanız -->
+    <!-- Genel stil -->
     <link rel="stylesheet" href="styles.css" />
 
-    <!-- Bu proje için gerekli ufak ek stiller -->
+    <!-- Bu proje için ufak ek stiller -->
     <style>
-      /* Form alanları için küçük bir yardımcı stil */
-      .field {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        margin: 10px 0;
-      }
-      .field > span {
-        font-size: 0.9rem;
-        opacity: 0.85;
-      }
-      .muted {
-        font-size: 0.85rem;
-        opacity: 0.7;
-        margin: 6px 0 12px;
-      }
-
-      /* Modal içindeki inputlar için örnek görünüm (mevcut temanız yoksa) */
+      .field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+      .field>span{font-size:.9rem;opacity:.85}
+      .muted{font-size:.85rem;opacity:.7;margin:6px 0 12px}
       .modal-box input[type="text"],
+      .modal-box input[type="email"],
       .modal-box input[type="tel"],
-      .modal-box input[type="password"] {
-        width: 100%;
-        padding: 10px 12px;
-        border-radius: 10px;
-        border: 1px solid rgba(255,255,255,.15);
-        background: rgba(255,255,255,.06);
-        color: #fff;
-        outline: none;
+      .modal-box input[type="password"]{
+        width:100%;padding:10px 12px;border-radius:10px;
+        border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;outline:none
       }
-      .modal-box input::placeholder { color: rgba(255,255,255,.6); }
-
-      /* Basit düğme stili örneği (mevcut buton stiliniz varsa buna gerek yok) */
-      .btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border: none;
-        border-radius: 12px;
-        padding: 10px 16px;
-        cursor: pointer;
-      }
-      .btn-primary { background: #6c5ce7; color: #fff; }
-      .btn-ghost   { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.2); }
-      .btn-neon    { background: #00d4ff; color: #00121a; font-weight: 700; box-shadow: 0 0 20px rgba(0,212,255,.4); }
-
-      /* Basit layout örnekleri - kendi tasarımınız varsa kullanmayın */
-      body { color: #fff; background: #0a0f1a; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
-      .container { max-width: 1200px; margin: 0 auto; padding: 24px; position: relative; z-index: 1; }
-      .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-      .title { font-size: clamp(1.3rem, 2.5vw, 1.8rem); }
-      .user-info.hidden { display: none; }
-      .hero { display: grid; grid-template-columns: 1fr 360px; gap: 24px; align-items: start; }
-      .wheel-wrap { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 20px; padding: 20px; display: grid; gap: 16px; justify-items: center; }
-      .wheel-toolbar { display: flex; gap: 12px; align-items: center; }
-      .ml { margin-left: 10px; }
-      .profile .card { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 20px; padding: 16px; margin-bottom: 16px; }
-      .counter { font-size: 2.2rem; font-weight: 800; margin-top: 6px; }
-      .leaderboard-section { margin-top: 28px; }
-      .leaderboard { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
-      .leaderboard li { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 14px; padding: 10px 12px; }
-      .spin-note { opacity: .8; font-size: .9rem; }
-
-      /* Popup & Modal zarif görünüm (temel) */
-      .modal::backdrop, .popup::backdrop { background: rgba(0,0,0,.6); }
-      .modal-box, .popup-box {
-        background: rgba(17, 18, 28, .92);
-        border: 1px solid rgba(255,255,255,.08);
-        border-radius: 16px;
-        padding: 18px;
-        min-width: min(560px, 90vw);
-      }
-
-      /* Arka plan efektleri (temel placeholder) */
-      .bg { position: fixed; inset: 0; z-index: 0; }
-      .bg-gradient { position: absolute; inset: 0; background: radial-gradient(90% 70% at 20% 20%, rgba(108,92,231,.12), transparent), radial-gradient(90% 70% at 80% 50%, rgba(0,212,255,.10), transparent); }
+      .modal-box input::placeholder{color:rgba(255,255,255,.6)}
+      .btn{display:inline-flex;align-items:center;justify-content:center;border:none;border-radius:12px;padding:10px 16px;cursor:pointer}
+      .btn-primary{background:#6c5ce7;color:#fff}
+      .btn-ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.2)}
+      .btn-neon{background:#00d4ff;color:#00121a;font-weight:700;box-shadow:0 0 20px rgba(0,212,255,.4)}
+      body{color:#fff;background:#0a0f1a;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial}
+      .container{max-width:1200px;margin:0 auto;padding:24px;position:relative;z-index:1}
+      .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+      .title{font-size:clamp(1.3rem,2.5vw,1.8rem)}
+      .user-info.hidden{display:none}
+      .hero{display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start}
+      .wheel-wrap{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:20px;display:grid;gap:16px;justify-items:center}
+      .wheel-toolbar{display:flex;gap:12px;align-items:center}
+      .ml{margin-left:10px}
+      .profile .card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:16px;margin-bottom:16px}
+      .counter{font-size:2.2rem;font-weight:800;margin-top:6px}
+      .leaderboard-section{margin-top:28px}
+      .leaderboard{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+      .leaderboard li{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:10px 12px}
+      .spin-note{opacity:.8;font-size:.9rem}
+      .modal::backdrop,.popup::backdrop{background:rgba(0,0,0,.6)}
+      .modal-box,.popup-box{background:rgba(17,18,28,.92);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:18px;min-width:min(560px,90vw)}
+      .bg{position:fixed;inset:0;z-index:0}
+      .bg-gradient{position:absolute;inset:0;background:
+        radial-gradient(90% 70% at 20% 20%,rgba(108,92,231,.12),transparent),
+        radial-gradient(90% 70% at 80% 50%,rgba(0,212,255,.10),transparent)}
     </style>
 
     <!-- Kütüphaneler -->
     <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!-- Uygulama scriptleri (sıra önemli) -->
+    <!-- Uygulama scriptleri (SIRA ÖNEMLİ) -->
     <script defer src="supabaseClient.js"></script>
     <script defer src="wheel.js"></script>
     <script defer src="app.js"></script>
@@ -102,7 +60,7 @@
     <noscript>Bu uygulamayı kullanmak için JavaScript etkin olmalıdır.</noscript>
   </head>
   <body>
-    <!-- Arka plan efektleri -->
+    <!-- Arka plan -->
     <div class="bg" aria-hidden="true">
       <div class="bg-gradient"></div>
       <div class="bg-stars"></div>
@@ -110,15 +68,10 @@
     </div>
 
     <main class="container">
-      <!-- Üst başlık ve kullanıcı kutusu -->
       <header class="header">
         <h1 class="title">Yılın Siteleri – Özel Bot</h1>
-
         <div class="userbox" id="userBox">
-          <!-- Giriş butonu (oturum yokken görünür) -->
           <button id="loginBtn" class="btn btn-primary" type="button">Giriş</button>
-
-          <!-- Oturum bilgisi (oturum varken görünür) -->
           <div class="user-info hidden" id="userInfo" aria-live="polite">
             <span id="usernameLabel">@kullanici</span>
             <button id="logoutBtn" class="btn btn-ghost" type="button">Çıkış</button>
@@ -126,13 +79,11 @@
         </div>
       </header>
 
-      <!-- Ana bölüm: çark + profil kartları -->
       <section class="hero">
         <div class="wheel-wrap">
           <canvas id="wheelCanvas" width="480" height="480" aria-label="Ödül Çarkı"></canvas>
           <div class="wheel-pointer" aria-hidden="true"></div>
 
-          <!-- Kontroller -->
           <div class="wheel-toolbar">
             <label for="speedSelect">Hız:</label>
             <select id="speedSelect" aria-label="Çark Hızı">
@@ -145,7 +96,6 @@
               <input type="checkbox" id="tickSoundChk" checked />
               Tık sesi
             </label>
-
             <label class="ml">
               <input type="checkbox" id="flashChk" checked />
               Kazanan parlasın
@@ -153,12 +103,9 @@
           </div>
 
           <button id="spinBtn" class="btn btn-neon" type="button">ÇEVİR</button>
-          <p class="spin-note">
-            Günde 1 kez çevirebilirsin. Ekstra spin çıkarsa +1 hakkın olur!
-          </p>
+          <p class="spin-note">Günde 1 kez çevirebilirsin. Ekstra spin çıkarsa +1 hakkın olur!</p>
         </div>
 
-        <!-- Profil ve sayaçlar -->
         <aside class="profile">
           <div class="card">
             <h3>Profilim</h3>
@@ -168,7 +115,6 @@
               <li>Puanım: <strong id="myPoints">0</strong></li>
             </ul>
           </div>
-
           <div class="card">
             <h3>Toplam Katılım</h3>
             <div class="counter" id="totalCounter">0</div>
@@ -176,53 +122,44 @@
         </aside>
       </section>
 
-      <!-- Leaderboard -->
       <section class="leaderboard-section">
         <h2>Leaderboard</h2>
-        <ul id="leaderboardList" class="leaderboard" aria-live="polite">
-          <!-- JS doldurur -->
-        </ul>
+        <ul id="leaderboardList" class="leaderboard" aria-live="polite"></ul>
       </section>
     </main>
 
-    <!-- Giriş / Kayıt Modalı (GSM + Şifre dahil) -->
+    <!-- Giriş / Kayıt Modalı -->
     <dialog id="loginModal" class="modal">
       <form method="dialog" class="modal-box" id="loginForm">
         <h3>Hesap Oluştur / Giriş</h3>
 
         <label class="field" for="usernameInput">
           <span>Telegram Kullanıcı Adı</span>
-          <input
-            id="usernameInput"
-            type="text"
-            placeholder="@kullaniciadi"
-            autocomplete="username"
-            required
-          />
+          <input id="usernameInput" type="text" placeholder="@kullaniciadi"
+                 autocomplete="username" required />
+        </label>
+
+        <label class="field" for="emailInput">
+          <span>E-posta</span>
+          <input id="emailInput" type="email" placeholder="mail@ornek.com"
+                 autocomplete="email" />
         </label>
 
         <label class="field" for="phoneInput">
           <span>Telefon (GSM)</span>
-          <input
-            id="phoneInput"
-            type="tel"
-            placeholder="+90 5xx xxx xx xx"
-            autocomplete="tel"
-          />
+          <input id="phoneInput" type="tel" placeholder="+90 5xx xxx xx xx"
+                 autocomplete="tel" />
         </label>
 
         <label class="field" for="passwordInput">
           <span>Şifre</span>
-          <input
-            id="passwordInput"
-            type="password"
-            placeholder="••••••••"
-            autocomplete="new-password"
-          />
+          <input id="passwordInput" type="password" placeholder="••••••••"
+                 autocomplete="new-password" />
         </label>
 
         <p class="muted">
-          Not: Kayıt işlemini tamamlamak için GSM numaranız ve şifrenizi girmeniz zorunludur.
+          İlk kayıt için GSM ve şifre zorunludur. E-posta adresi doğru formatta olmalıdır.
+          Daha sonra sadece kullanıcı adı + şifre ile giriş yapabilirsiniz.
         </p>
 
         <button class="btn btn-primary" id="confirmLogin" type="submit">
@@ -236,13 +173,11 @@
       <div class="popup-box">
         <h3 id="popupTitle">Sonuç</h3>
         <p id="popupMsg">—</p>
-        <button class="btn btn-primary" id="popupClose" type="button">
-          Kapat
-        </button>
+        <button class="btn btn-primary" id="popupClose" type="button">Kapat</button>
       </div>
     </dialog>
 
-    <footer class="footer" style="opacity:.7; margin: 22px auto; max-width: 1200px;">
+    <footer class="footer" style="opacity:.7;margin:22px auto;max-width:1200px">
       <small>© 2025 Yılın Siteleri</small>
     </footer>
   </body>
