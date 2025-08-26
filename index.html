@@ -8,10 +8,10 @@
 
     <!-- GSAP animasyon -->
     <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
-    <!-- Supabase JS -->
+    <!-- Supabase JS (SDK v2) -->
     <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!-- Uygulama scriptleri -->
+    <!-- Uygulama scriptleri (sıra önemli) -->
     <script defer src="supabaseClient.js"></script>
     <script defer src="wheel.js"></script>
     <script defer src="app.js"></script>
@@ -36,34 +36,31 @@
       </header>
 
       <section class="hero">
- <div class="wheel-wrap">
-  <canvas id="wheelCanvas" width="480" height="480"></canvas>
-  <div class="wheel-pointer" aria-hidden="true"></div>
+        <div class="wheel-wrap">
+          <canvas id="wheelCanvas" width="480" height="480"></canvas>
+          <div class="wheel-pointer" aria-hidden="true"></div>
 
-  <!-- Kontroller -->
-  <div class="wheel-toolbar">
-    <label>Hız:
-      <select id="speedSelect">
-        <option value="fast">Hızlı</option>
-        <option value="normal" selected>Orta</option>
-        <option value="slow">Yavaş</option>
-      </select>
-    </label>
-    <label class="ml">
-      <input type="checkbox" id="tickSoundChk" checked />
-      Tık sesi
-    </label>
-    <label class="ml">
-      <input type="checkbox" id="flashChk" checked />
-      Kazanan parlasın
-    </label>
-  </div>
+          <!-- Kontroller -->
+          <div class="wheel-toolbar">
+            <label>Hız:
+              <select id="speedSelect">
+                <option value="fast">Hızlı</option>
+                <option value="normal" selected>Orta</option>
+                <option value="slow">Yavaş</option>
+              </select>
+            </label>
+            <label class="ml">
+              <input type="checkbox" id="tickSoundChk" checked />
+              Tık sesi
+            </label>
+            <label class="ml">
+              <input type="checkbox" id="flashChk" checked />
+              Kazanan parlasın
+            </label>
+          </div>
 
-  <button id="spinBtn" class="btn btn-neon">ÇEVİR</button>
-  <p class="spin-note">Günde 1 kez çevirebilirsin. Ekstra spin çıkarsa +1 hakkın olur!</p>
-</div>
-
-
+          <button id="spinBtn" class="btn btn-neon">ÇEVİR</button>
+          <p class="spin-note">Günde 1 kez çevirebilirsin. Ekstra spin çıkarsa +1 hakkın olur!</p>
         </div>
 
         <aside class="profile">
@@ -84,7 +81,8 @@
 
       <section class="leaderboard-section">
         <h2>Leaderboard</h2>
-        <div class="leaderboard" id="leaderboard"></div>
+        <!-- JS bu ID'yi bekliyor -->
+        <ul id="leaderboardList" class="leaderboard"></ul>
       </section>
     </main>
 
