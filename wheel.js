@@ -1,5 +1,11 @@
-// ---------- REALISTIC 12-SEGMENT WHEEL (Casino Style) ----------
-// Backend anahtarlarıyla uyumlu: promocode / points / pass / extra_spin
+// ---------- PREMIUM 12-SEGMENT WHEEL ----------
+// - Kavisli ve dilime sığan yazılar (otomatik font küçültme)
+// - Dış kenara yakın konumlandırma
+// - Casino paleti + altın çerçeve
+// - HiDPI netlik
+// - Bloom (ışık süpürme) efekti (sürekli hareket)
+// - Hız modları, tık sesi, kazanan dilimde parlama
+// - Opsiyonel merkez logo: repo köküne logo.png koy
 
 const WHEEL_SEGMENTS = [
   { key: 'promocode',  label: 'Promocode' },
@@ -16,26 +22,27 @@ const WHEEL_SEGMENTS = [
   { key: 'points',     label: '+ Puan'   },
 ];
 
-// Doygun casino paleti
+// Doygun casino renk paleti (12 renk)
 const PALETTE = [
   '#e63946','#ffb703','#8ecae6','#8338ec',
   '#fb5607','#06d6a0','#ff006e','#3a86ff',
   '#f77f00','#7209b7','#118ab2','#ffd60a'
 ];
 
-let currentRotation = 0;                   // deg (GSAP rotate)
+let currentRotation = 0;
 let tickIndex = -1;
 let options = { speed: 'normal', tick: true, flash: true };
 let centerLogo = null;
 let hidpiApplied = false;
 let lastDraw = { cx: 0, cy: 0, R: 0 };
+let sweepAngle = 0; // bloom efekti için
 
-// Kısa "klik" sesi
+// kısa klik sesi
 const tickAudio = new Audio(
   "data:audio/wav;base64,UklGRoQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYAAAChAAAAPwAAACoAAABtZGF0YUEAAACAgYCBgYGBgYCAgICAgYGBgYGBgYGBgYGBgYGBgICAgICAgYGBgYGBgYGAf39/f39/f4GBgYGBgYGBgYCAgICAgICAgIGBgYGBgYGBgYGBgYGBgYGBgICAgICAgIGBgYGBgYGBgYGBgYGBgYGAg=="
 );
 
-// Opsiyonel merkez logo (repo köküne logo.png koyarsan)
+// opsiyonel merkez logo
 (function loadLogo(){
   const img = new Image();
   img.onload  = () => (centerLogo = img);
@@ -45,7 +52,7 @@ const tickAudio = new Audio(
 
 function setOptions(next) { options = { ...options, ...next }; }
 
-// ---- Yardımcılar ----
+// ----- yardımcılar -----
 function setupHiDPI(canvas) {
   const dpr = window.devicePixelRatio || 1;
   const cssW = canvas.getAttribute('width')  ? parseInt(canvas.getAttribute('width'),10)  : canvas.clientWidth;
@@ -53,10 +60,8 @@ function setupHiDPI(canvas) {
   canvas.width  = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);
   const ctx = canvas.getContext('2d');
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);   // artık çizimler CSS pikselinde
-  canvas._dpr = dpr;
-  canvas._cssW = cssW;
-  canvas._cssH = cssH;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  canvas._cssW = cssW; canvas._cssH = cssH;
   hidpiApplied = true;
 }
 
@@ -77,23 +82,51 @@ function darken(hex, amt=0.25){
   return `rgb(${r},${g},${b})`;
 }
 
-function drawSegmentText(ctx, text, cx, cy, radius, midAngleRad) {
+// ---- KAVİSLİ, DİLİME SIĞAN METİN ----
+// Yazıyı dilim içindeki yay uzunluğuna göre otomatik küçültür ve
+// karakterleri yay üzerinde eşit aralıklarla dizer.
+function drawCurvedFittedText(ctx, text, cx, cy, radius, startRad, endRad) {
+  const pad = Math.PI / 48; // dilimde kenarlardan 3.75° boşluk
+  const a0 = startRad + pad;
+  const a1 = endRad   - pad;
+  const sweep = Math.max(a1 - a0, Math.PI/90); // minimum
+
+  // Hedef yarıçap: dış kenara yakın
+  const r = radius * 0.82;
+
+  // Otomatik font boyutu: 26 → 14 arası
+  let fontSize = 26;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+
+  while (fontSize >= 14) {
+    ctx.font = `700 ${fontSize}px Inter, Arial, sans-serif`;
+    // Yaklaşık genişlik: tek tek ölçmek yerine toplam ölç
+    const metrics = ctx.measureText(text.toUpperCase());
+    const textWidth = metrics.width;
+    const arcLen = r * sweep; // kullanılabilir yay uzunluğu
+    if (textWidth <= arcLen) break;
+    fontSize -= 1;
+  }
+
+  // Siyah stroke + beyaz doldurma
+  ctx.lineWidth = Math.max(3, Math.floor(fontSize * 0.22));
+  ctx.strokeStyle = 'rgba(0,0,0,.7)';
+  ctx.fillStyle = '#fff';
+
+  const chars = text.toUpperCase().split('');
+  const step = sweep / Math.max(chars.length - 1, 1);
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.rotate(midAngleRad - Math.PI/2);    // 12 yönüne hizalı
-  const r = radius * 0.55;                // merkeze daha yakın → okunaklı
-
-  ctx.font = '700 22px Inter, Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  // Siyah dış hat + parlak beyaz
-  ctx.lineWidth = 5;
-  ctx.strokeStyle = 'rgba(0,0,0,.65)';
-  ctx.fillStyle = '#fff';
-  ctx.strokeText(text.toUpperCase(), 0, -r);
-  ctx.fillText(text.toUpperCase(), 0, -r);
-
+  ctx.rotate(a0 - Math.PI/2);
+  for (let i = 0; i < chars.length; i++) {
+    ctx.save();
+    ctx.rotate(step * i);
+    ctx.translate(0, -r);
+    ctx.strokeText(chars[i], 0, 0);
+    ctx.fillText(chars[i], 0, 0);
+    ctx.restore();
+  }
   ctx.restore();
 }
 
@@ -131,11 +164,10 @@ function drawWheel(canvas) {
   for (let i = 0; i < n; i++) {
     const start = base + (i / n) * Math.PI * 2;
     const end   = base + ((i + 1) / n) * Math.PI * 2;
-    const mid   = (start + end) / 2;
 
     // Parlak gövde + koyu kenar
     const segGrad = ctx.createRadialGradient(cx, cy, R*0.2, cx, cy, R);
-    segGrad.addColorStop(0, lighten(PALETTE[i], 0.2));
+    segGrad.addColorStop(0, lighten(PALETTE[i], 0.25));
     segGrad.addColorStop(1, darken(PALETTE[i], 0.25));
 
     ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, R, start, end); ctx.closePath();
@@ -145,13 +177,14 @@ function drawWheel(canvas) {
     ctx.save(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,.35)';
     ctx.beginPath(); ctx.arc(cx, cy, R, start, start); ctx.stroke(); ctx.restore();
 
-    drawSegmentText(ctx, WHEEL_SEGMENTS[i].label, cx, cy, R, mid);
+    // Kavisli metin (dilim içine sığdır, dış kenara yakın)
+    drawCurvedFittedText(ctx, WHEEL_SEGMENTS[i].label, cx, cy, R, start, end);
   }
 
   // Cam parlama
   ctx.save();
   const glossGrad = ctx.createLinearGradient(0, cy - R, 0, cy + R);
-  glossGrad.addColorStop(0, 'rgba(255,255,255,.22)');
+  glossGrad.addColorStop(0, 'rgba(255,255,255,.18)');
   glossGrad.addColorStop(0.45, 'rgba(255,255,255,.06)');
   glossGrad.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.beginPath();
@@ -160,6 +193,19 @@ function drawWheel(canvas) {
   ctx.arc(cx, cy, R, 0, Math.PI, true);
   ctx.closePath();
   ctx.fillStyle = glossGrad; ctx.fill();
+  ctx.restore();
+
+  // Bloom (ışık süpürme) – tepenin etrafında dönen yumuşak highlight
+  ctx.save();
+  const sweepWidth = Math.PI / 8;               // ışık konisinin genişliği
+  const startA = sweepAngle - sweepWidth/2;
+  const endA   = sweepAngle + sweepWidth/2;
+  ctx.globalCompositeOperation = 'lighter';
+  const bloom = ctx.createRadialGradient(cx, cy, R*0.65, cx, cy, R);
+  bloom.addColorStop(0, 'rgba(255,255,255,0)');
+  bloom.addColorStop(1, 'rgba(255,255,255,.22)');
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, R, startA, endA); ctx.closePath();
+  ctx.fillStyle = bloom; ctx.fill();
   ctx.restore();
 
   // Merkez logo / metal hub
@@ -232,6 +278,8 @@ function spinWheelToIndex(canvas, index, onDone) {
         tickIndex = idx;
         try { tickAudio.currentTime = 0; tickAudio.play(); } catch {}
       }
+      // Spin sırasında da bloom yönünü hafifçe değiştir
+      sweepAngle = (Math.PI * 2) * ((r % 360) / 360) - Math.PI/2;
     },
     onComplete: () => {
       if (options.flash) flashWinner(canvas, index);
@@ -239,5 +287,17 @@ function spinWheelToIndex(canvas, index, onDone) {
     },
   });
 }
+
+// Sürekli bloom hareketi (idle animasyon)
+(function startBloom(){
+  gsap.to({}, {
+    duration: 10, repeat: -1, ease: "none",
+    onUpdate: () => {
+      sweepAngle += (Math.PI * 2) / (10 * 60); // ~60fps varsayımı
+      const cvs = document.getElementById('wheelCanvas');
+      if (cvs) drawWheel(cvs);
+    }
+  });
+})();
 
 window.Wheel = { drawWheel, spinWheelToIndex, WHEEL_SEGMENTS, setOptions };
